@@ -9,6 +9,8 @@
 
 ---
 
+![Aegis-Amnesia Dashboard](./dashboard/dashboard.png)
+
 ## What Is This?
 
 As autonomous AI agents process increasingly sensitive data — PII, API keys, financial records, corporate IP — traditional "delete" is **fundamentally insecure**. Deleted bytes linger in RAM, swap files, and OS buffers.
