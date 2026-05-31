@@ -1,0 +1,41 @@
+{
+  "name": "cryptographic-amnesia",
+  "version": "1.0.0",
+  "description": "Ephemeral self-destructing agent memory with cryptographic erasure guarantees",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx examples/agent-demo.ts"
+  },
+  "keywords": [
+    "cryptography",
+    "agent-memory",
+    "self-destructing",
+    "ephemeral",
+    "aes-256-gcm",
+    "zero-knowledge",
+    "ai-agents"
+  ],
+  "author": "Hamza Imran",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.3",
+    "@types/node": "^25.9.1",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  }
+}

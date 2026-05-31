@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cryptographic Amnesia — Live Dashboard</title>
+  <meta name="description" content="Real-time ephemeral agent memory monitor with AES-256-GCM key shredding and Proof-of-Erasure attestations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ── PARTICLE CANVAS ───────────────────────────────────── -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- ── HEADER ────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="18" stroke="url(#g1)" stroke-width="2"/>
+          <path d="M14 20 L20 14 L26 20 L20 26 Z" fill="url(#g2)"/>
+          <path d="M20 14 L20 10 M20 30 L20 26 M14 20 L10 20 M30 20 L26 20" stroke="url(#g1)" stroke-width="1.5" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="g1" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a855f7"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+            <linearGradient id="g2" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a855f7" stop-opacity="0.8"/>
+              <stop offset="1" stop-color="#06b6d4" stop-opacity="0.8"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">Cryptographic Amnesia</h1>
+        <p class="brand-sub">Ephemeral Self-Destructing Agent Memory</p>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-indicator" id="status-dot"></div>
+      <span class="status-text" id="status-text">Connecting...</span>
+      <div class="header-badge">AES-256-GCM</div>
+      <div class="header-badge">HMAC-SHA256</div>
+    </div>
+  </header>
+
+  <!-- ── STATS BAR ──────────────────────────────────────────── -->
+  <section class="stats-bar">
+    <div class="stat-card" id="stat-active">
+      <div class="stat-value" id="stat-active-val">—</div>
+      <div class="stat-label">Active Memories</div>
+    </div>
+    <div class="stat-card" id="stat-shredded">
+      <div class="stat-value shredded" id="stat-shredded-val">—</div>
+      <div class="stat-label">Shredded Keys</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total-val">—</div>
+      <div class="stat-label">Total Processed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-audit-val">—</div>
+      <div class="stat-label">Audit Events</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value green" id="stat-uptime-val">—</div>
+      <div class="stat-label">Uptime (s)</div>
+    </div>
+  </section>
+
+  <!-- ── MAIN GRID ──────────────────────────────────────────── -->
+  <main class="main-grid">
+
+    <!-- ── LEFT: STORE + MEMORY GRID ────────────────────────── -->
+    <section class="panel left-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <span class="panel-icon">🔐</span> Memory Vault
+        </h2>
+        <button class="btn-primary" id="open-modal-btn">+ New Memory</button>
+      </div>
+
+      <div class="memory-grid" id="memory-grid">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🧠</div>
+          <p>No active memories in the vault.</p>
+          <p class="empty-sub">Encrypt a new memory to watch it countdown to oblivion.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── RIGHT: AUDIT LOG ──────────────────────────────────── -->
+    <section class="panel right-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <span class="panel-icon">📜</span> Audit Log
+        </h2>
+        <span class="log-count" id="log-count">0 events</span>
+      </div>
+      <div class="audit-log" id="audit-log">
+        <div class="empty-state">
+          <div class="empty-icon">📡</div>
+          <p>Waiting for events...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── MODAL: NEW MEMORY ──────────────────────────────────── -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">🔐 Encrypt New Memory</h3>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="input-label">Memory Label</label>
+          <input class="form-input" id="input-label" type="text" placeholder="e.g. user-api-key, session-token" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-plaintext">Sensitive Payload</label>
+          <textarea class="form-input form-textarea" id="input-plaintext" placeholder="Enter the sensitive data to encrypt and self-destruct..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-ttl">
+            Time-to-Live (TTL)
+            <span class="ttl-display" id="ttl-display">10s</span>
+          </label>
+          <input class="form-range" id="input-ttl" type="range" min="3000" max="60000" step="1000" value="10000" />
+          <div class="range-labels">
+            <span>3s</span><span>30s</span><span>60s</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn-primary" id="modal-submit">🔐 Encrypt &amp; Store</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SHRED OVERLAY ─────────────────────────────────────── -->
+  <div class="shred-overlay" id="shred-overlay">
+    <div class="shred-content">
+      <div class="shred-icon">💥</div>
+      <h3 class="shred-title">Key Shredded</h3>
+      <p class="shred-sub">Cryptographic Amnesia achieved</p>
+      <div class="shred-proof" id="shred-proof-text"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
