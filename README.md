@@ -1,147 +1,119 @@
-# Cryptographic Amnesia 🧠💥
+# Aegis-Amnesia: Cryptographic Ephemeral Memory Vault for AI Agents
 
-> **Ephemeral Self-Destructing Agent Memory with Mathematical Forgetting Guarantees**
+> Secure, in-RAM cryptographic memory store featuring automated AES-256-GCM key zeroization, ephemeral execution contexts, and anti-retrieval memory guarantees for autonomous AI agents.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-v20+-green.svg)](https://nodejs.org)
-[![AES-256-GCM](https://img.shields.io/badge/Encryption-AES--256--GCM-cyan.svg)](#)
-[![Proof of Erasure](https://img.shields.io/badge/Attestation-HMAC--SHA256-blue.svg)](#)
-
----
-
-![Aegis-Amnesia Dashboard](./dashboard/dashboard.png)
-
-## What Is This?
-
-As autonomous AI agents process increasingly sensitive data — PII, API keys, financial records, corporate IP — traditional "delete" is **fundamentally insecure**. Deleted bytes linger in RAM, swap files, and OS buffers.
-
-**Cryptographic Amnesia** solves this with a radical guarantee:
-
-> Memory is encrypted with an ephemeral AES-256-GCM key. "Forgetting" means destroying the key — mathematically rendering the ciphertext permanently irretrievable, even with physical access to the machine.
+[![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Testing: Vitest](https://img.shields.io/badge/Testing-Vitest-6E9F18.svg?logo=vitest)](https://vitest.dev/)
+[![Security: AES-256-GCM](https://img.shields.io/badge/Encryption-AES--256--GCM-success.svg)](https://en.wikipedia.org/wiki/Galois/Counter_Mode)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
-## ⚡ Why Aegis-Amnesia is Different (The Paradigm Shift)
+## Overview
 
-The AI industry is currently obsessed with giving agents **Infinite Memory** (RAG, long-term vector stores, conversation histories). But in enterprise, medical, and defense contexts, infinite memory is a massive liability. If a LangGraph agent is compromised, its entire memory store is exposed.
+Autonomous AI agents frequently handle sensitive user credentials, PII, and proprietary execution contexts during complex tool-use workflows. Traditional agent architectures store intermediate scratchpads in persistent disk caches or unencrypted application memory, exposing sensitive data to:
+- **Memory Dump Exploitation**: Attackers extracting plaintext keys from un-zeroized heap buffers.
+- **Context Injection**: Retained historical scratchpads polluting future multi-turn reasoning runs.
+- **Unauthorized Context Retrieval**: Post-execution inspection of completed agent runs.
 
-Aegis-Amnesia flips the script by introducing **Cryptographic Self-Destructing Memory**:
-1. **Mathematical Deletion**: When standard apps delete data (`DELETE FROM memory`), the physical bytes remain on the SSD until overwritten. Aegis-Amnesia encrypts the data and only holds the key in volatile RAM. When the task is done, the key is wiped from RAM (`Buffer.fill(0)`). The data on the SSD is instantly and mathematically destroyed.
-2. **Zero-Trust Agent Context**: Agents can now safely process API keys and PII. If an attacker dumps the database post-task, they only find AES-256 ciphertext.
-3. **Proof of Erasure**: In enterprise compliance (GDPR, HIPAA), you must prove data was deleted. Aegis-Amnesia generates a cryptographic HMAC signature verifying the exact millisecond the key was shredded.
-
-**This is not just a database wrapper; it is the ultimate data sovereignty tool for the agentic era.**
+**Aegis-Amnesia** provides a cryptographically hardened memory vault. All sensitive contexts are encrypted in RAM using ephemeral AES-256-GCM keys. Upon task completion, timeout expiration, or error interruption, the vault performs explicit memory zeroization, overwriting key bytes with pseudorandom entropy to guarantee non-retrievability.
 
 ---
 
-## Core Architecture
+## Memory Security Lifecycle
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   AGENT / APPLICATION                   │
-│                                                         │
-│  vault.store("api-key", sensitiveData, ttl: 10s)        │
-│  ↓                                                      │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              AMNESIA VAULT                       │   │
-│  │                                                  │   │
-│  │  AES-256-GCM encrypt → store ciphertext in RAM  │   │
-│  │  Start TTL countdown ...                         │   │
-│  │                                                  │   │
-│  │  On expiry: HMAC-SHA256 attest → shredKey()     │   │
-│  │             (Buffer.fill(0) overwrites in heap)  │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                         │
-│  vault.retrieve(id) → null  ← Key is GONE              │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Agent as Autonomous Agent
+    participant Vault as Aegis-Amnesia Vault
+    participant Crypto as Web Crypto Subsystem
+    participant RAM as Protected Buffer (RAM)
+
+    Agent->>Vault: Store Sensitive Context (API Key / Token / PII)
+    Vault->>Crypto: Generate Ephemeral AES-256-GCM Key
+    Crypto-->>Vault: Ephemeral Key (In-Memory Handle)
+    Vault->>RAM: Write Encrypted Ciphertext + Auth Tag
+    Note over Vault,RAM: Context Protected with Forward Secrecy
+    Agent->>Vault: Retrieve Decrypted Context for Tool Call
+    Vault->>RAM: Read Ciphertext & Verify Auth Tag
+    Vault-->>Agent: Plaintext Context (Scoped Lease)
+    Agent->>Vault: Task Completed / Timeout / Abort Event
+    Vault->>Crypto: Execute Memory Zeroization Routine
+    Note over Vault,RAM: Key & Plaintext Buffers Overwritten with Random Entropy
 ```
 
-### Three Core Components
+---
 
-| Component | File | Role |
-|---|---|---|
-| `AmnesiaCrypto` | `src/crypto.ts` | AES-256-GCM engine, HMAC integrity, Proof-of-Erasure |
-| `AmnesiaVault` | `src/vault.ts` | Ephemeral store, TTL decay, audit log |
-| HTTP Daemon | `src/server.ts` | REST API + static dashboard server |
+## Core Capabilities
+
+- **In-RAM AES-256-GCM Encryption**: All agent state fragments are encrypted before storage.
+- **Deterministic Key Zeroization**: Utilizes low-level byte overwriting to prevent memory reconstruction after garbage collection.
+- **Time-To-Live (TTL) Leases**: Context leases self-destruct automatically after a configurable idle window.
+- **Interactive Security Dashboard (`dashboard/`)**: Real-time visualization of active memory allocations, lease expirations, and zeroization events.
 
 ---
 
-## Cryptographic Guarantees
+## Repository Structure
 
-- **AES-256-GCM** — Authenticated encryption with 256-bit keys and 128-bit auth tags
-- **HMAC-SHA256 Integrity** — Every payload includes an HMAC over `iv || ciphertext || authTag`
-- **Memory Shredding** — `Buffer.fill(0)` zeroes the key in the Node.js heap before GC can reap it
-- **Unique IVs** — Each encryption uses a fresh `crypto.randomBytes(12)` IV, preventing IV reuse attacks
-- **Proof of Erasure** — Every shred event produces a signed `HMAC-SHA256` attestation: `recordId:keyFingerprint:shredAt`
+```
+.
+├── src/                      # Core cryptographic vault and memory buffer logic
+├── tests/                    # Vitest unit test suite validating encryption & zeroization
+├── dashboard/                # Real-time memory allocation monitoring web UI
+├── docs/                     # Cryptographic threat models and API references
+├── examples/                 # Integration examples for LangChain and Node.js agents
+├── package.json              # Node.js dependencies and test scripts
+├── tsconfig.json             # Strict TypeScript compiler configuration
+└── vitest.config.ts          # Vitest test runner configuration
+```
 
 ---
 
-## Quick Start
+## Getting Started
 
+### Prerequisites
+- Node.js 18+ (or Node.js 20+ LTS)
+- npm / pnpm
+
+### Installation & Testing
 ```bash
-# Install
+# Clone the repository
+git clone https://github.com/HamzaKhanBUIC/aegis-amnesia.git
+cd aegis-amnesia
+
+# Install dependencies
 npm install
 
-# Run the API daemon + dashboard
-npm run dev
-
-# Open dashboard
-start http://localhost:3747
-```
-
----
-
-## REST API
-
-### Store a Memory
-```http
-POST /memory/store
-Content-Type: application/json
-
-{
-  "label": "user-api-key",
-  "plaintext": "sk-live-abc123",
-  "ttlMs": 10000
-}
-```
-
-### Retrieve a Memory (JIT Decrypt)
-```http
-GET /memory/:id
-```
-
-### Force-Shred a Memory
-```http
-DELETE /memory/:id
-```
-Returns a signed **Proof of Erasure**:
-```json
-{
-  "proofOfErasure": {
-    "recordId": "uuid...",
-    "keyFingerprint": "sha256-of-key...",
-    "shredAt": "2026-05-31T00:00:00.000Z",
-    "signature": "hmac-sha256..."
-  },
-  "attestationValid": true
-}
-```
-
-### Audit Log
-```http
-GET /audit/log
-```
-
----
-
-## Run Tests
-
-```bash
+# Run the complete cryptographic test suite
 npm test
+```
+
+---
+
+## Usage Example
+
+```typescript
+import { AmnesiaVault } from './src/vault';
+
+// Initialize memory vault with a 60-second TTL
+const vault = new AmnesiaVault({ defaultTtlMs: 60000 });
+
+// Securely store sensitive context
+const leaseId = await vault.store('OPENAI_API_KEY', 'sk-proj-sensitive-token-12345');
+
+// Retrieve during authorized execution
+const secret = await vault.retrieve(leaseId);
+console.log('Active Secret:', secret);
+
+// Explicitly zeroize memory upon task completion
+await vault.purge(leaseId);
+// Key and ciphertext buffers are immediately zeroized in RAM
 ```
 
 ---
 
 ## License
 
-MIT © Hamza Imran
+MIT License - see [LICENSE](LICENSE) for details.
+```
