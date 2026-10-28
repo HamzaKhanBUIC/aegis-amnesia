@@ -140,7 +140,7 @@ app.get('/memory', (_req: Request, res: Response) => {
  * GET /memory/:id
  * JIT-decrypts and returns the context if the key is still alive.
  */
-app.get('/memory/:id', (req: Request, res: Response) => {
+app.get('/memory/:id', (req: Request<{ id: string }>, res: Response) => {
   const { id } = req.params;
   const plaintext = vault.retrieve(id);
 
@@ -159,7 +159,7 @@ app.get('/memory/:id', (req: Request, res: Response) => {
  * DELETE /memory/:id
  * Immediately shreds the encryption key. Returns a signed Proof of Erasure.
  */
-app.delete('/memory/:id', (req: Request, res: Response) => {
+app.delete('/memory/:id', (req: Request<{ id: string }>, res: Response) => {
   const { id } = req.params;
   const attestation = vault.shred(id);
 

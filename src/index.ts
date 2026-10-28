@@ -1,7 +1,8 @@
 import { AmnesiaVault, VaultRecordPublic, AuditEvent } from './vault';
 import { ShredAttestation } from './crypto';
 
-export { AmnesiaVault, AmnesiaCrypto } from './vault';
+export { AmnesiaVault } from './vault';
+export { AmnesiaCrypto } from './crypto';
 export type { VaultRecordPublic, AuditEvent } from './vault';
 export type { ShredAttestation, EncryptedPayload } from './crypto';
 
