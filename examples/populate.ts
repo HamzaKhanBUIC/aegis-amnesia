@@ -25,7 +25,10 @@ async function populate() {
     try {
       const res = await fetch(`${API}/memory/store`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.AMNESIA_TOKEN ?? ''}`,
+        },
         body: JSON.stringify(item)
       });
       if (res.ok) {

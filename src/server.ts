@@ -1,3 +1,6 @@
+import crypto from 'crypto';
+import type { Server } from 'http';
+import type { AddressInfo } from 'net';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { AmnesiaVault } from './vault';
@@ -6,12 +9,12 @@ import { AmnesiaCrypto } from './crypto';
 // ─── SETUP ──────────────────────────────────────────────────────────────────
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3747;
+const DEFAULT_PORT = 3747;
 // Loopback only by default. Set HOST to expose the daemon on other interfaces.
-const HOST = process.env.HOST || '127.0.0.1';
+const DEFAULT_HOST = '127.0.0.1';
+export const MIN_TOKEN_LENGTH = 16;
 const vault = new AmnesiaVault();
 
-app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'dashboard')));
 
 // ─── REQUEST LOGGER ─────────────────────────────────────────────────────────
@@ -34,6 +37,48 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ─── AUTH ───────────────────────────────────────────────────────────────────
+
+/** Returns why AMNESIA_TOKEN is unusable, or null when it is set. */
+export function tokenConfigError(token = process.env.AMNESIA_TOKEN): string | null {
+  if (!token || token.length < MIN_TOKEN_LENGTH) {
+    return `AMNESIA_TOKEN must be set to a random secret of at least ${MIN_TOKEN_LENGTH} characters ` +
+      '(e.g. `openssl rand -hex 32`).';
+  }
+  return null;
+}
+
+function sha256(value: string): Buffer {
+  return crypto.createHash('sha256').update(value, 'utf8').digest();
+}
+
+/**
+ * Every /memory and /audit route requires `Authorization: Bearer <AMNESIA_TOKEN>`.
+ * Fails closed: with no usable token configured, every request is rejected.
+ * Both sides are hashed so the comparison is constant-time for any input length.
+ */
+function requireToken(req: Request, res: Response, next: NextFunction): void {
+  const expected = process.env.AMNESIA_TOKEN;
+  const configError = tokenConfigError(expected);
+  if (configError) {
+    res.status(503).json({ error: 'AUTH_NOT_CONFIGURED', message: configError });
+    return;
+  }
+
+  const match = /^Bearer\s+(.+)$/i.exec(req.get('authorization') ?? '');
+  if (!match || !crypto.timingSafeEqual(sha256(match[1]), sha256(expected!))) {
+    res.status(401).set('WWW-Authenticate', 'Bearer').json({
+      error: 'UNAUTHORIZED',
+      message: 'Missing or invalid bearer token.',
+    });
+    return;
+  }
+  next();
+}
+
+app.use(['/memory', '/audit'], requireToken);
+app.use(express.json({ limit: '16kb' }));
 
 // ─── MEMORY ROUTES ──────────────────────────────────────────────────────────
 
@@ -161,20 +206,51 @@ app.get('/audit/stats', (_req: Request, res: Response) => {
 
 // ─── START ──────────────────────────────────────────────────────────────────
 
-app.listen(PORT, HOST, () => {
-  console.log('');
-  console.log('  ╔══════════════════════════════════════════════════════╗');
-  console.log('  ║      CRYPTOGRAPHIC AMNESIA — DAEMON v1.0.0           ║');
-  console.log('  ║      AES-256-GCM · HMAC-SHA256 · Proof-of-Erasure    ║');
-  console.log('  ╚══════════════════════════════════════════════════════╝');
-  console.log('');
-  console.log(`  API Server   →  http://${HOST}:${PORT}`);
-  console.log(`  Dashboard    →  http://${HOST}:${PORT}/index.html`);
-  console.log(`  Health       →  http://${HOST}:${PORT}/health`);
-  console.log(`  Audit Log    →  http://${HOST}:${PORT}/audit/log`);
-  console.log('');
-  console.log('  Waiting for agent memory requests...\n');
-});
+/**
+ * Starts the daemon on PORT (default 3747) and HOST (default 127.0.0.1).
+ * Throws instead of listening when AMNESIA_TOKEN is missing or too short.
+ */
+export function startServer(
+  port = Number(process.env.PORT) || DEFAULT_PORT,
+  host = process.env.HOST || DEFAULT_HOST,
+): Server {
+  const configError = tokenConfigError();
+  if (configError) throw new Error(`Refusing to start: ${configError}`);
+
+  const server = app.listen(port, host, (err?: Error) => {
+    if (err) {
+      console.error(`  Failed to listen on ${host}:${port}: ${err.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    const base = `http://${host}:${(server.address() as AddressInfo).port}`;
+    console.log('');
+    console.log('  ╔══════════════════════════════════════════════════════╗');
+    console.log('  ║      CRYPTOGRAPHIC AMNESIA — DAEMON v1.0.0           ║');
+    console.log('  ║      AES-256-GCM · HMAC-SHA256 · Proof-of-Erasure    ║');
+    console.log('  ╚══════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`  API Server   →  ${base}`);
+    console.log(`  Dashboard    →  ${base}/index.html`);
+    console.log(`  Health       →  ${base}/health`);
+    console.log(`  Audit Log    →  ${base}/audit/log`);
+    console.log('');
+    if (!['127.0.0.1', '::1', 'localhost'].includes(host)) {
+      console.warn(`  WARNING: HOST=${host} exposes the daemon beyond this machine.\n`);
+    }
+    console.log('  Waiting for agent memory requests...\n');
+  });
+  return server;
+}
+
+if (require.main === module) {
+  try {
+    startServer();
+  } catch (err) {
+    console.error(`\n  ${(err as Error).message}\n`);
+    process.exit(1);
+  }
+}
 
 export default app;
 export { vault };
