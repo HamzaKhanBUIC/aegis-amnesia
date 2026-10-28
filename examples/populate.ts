@@ -1,5 +1,5 @@
 async function populate() {
-  const API = 'http://localhost:3747';
+  const API = process.env.AMNESIA_URL || 'http://127.0.0.1:3747';
   
   const items = [
     {
@@ -39,7 +39,7 @@ async function populate() {
     }
   }
 
-  console.log('\nAll ready! Go ahead and open http://localhost:3747 in your browser to see them live.');
+  console.log(`\nAll ready! Go ahead and open ${API} in your browser to see them live.`);
 }
 
 populate();

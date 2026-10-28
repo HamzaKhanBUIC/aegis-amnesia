@@ -3,7 +3,7 @@
    Live polling · Memory cards · Audit log · Shred animations
    ───────────────────────────────────────────────────────────── */
 
-const API_BASE = 'http://localhost:3747';
+const API_BASE = ''; // same origin: the daemon serves this dashboard
 const POLL_INTERVAL = 800; // ms
 
 // ── STATE ─────────────────────────────────────────────────────────────────

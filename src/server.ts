@@ -1,5 +1,4 @@
 import express, { Request, Response, NextFunction } from 'express';
-import cors from 'cors';
 import path from 'path';
 import { AmnesiaVault } from './vault';
 import { AmnesiaCrypto } from './crypto';
@@ -7,10 +6,11 @@ import { AmnesiaCrypto } from './crypto';
 // ─── SETUP ──────────────────────────────────────────────────────────────────
 
 const app = express();
-const PORT = process.env.PORT || 3747;
+const PORT = Number(process.env.PORT) || 3747;
+// Loopback only by default. Set HOST to expose the daemon on other interfaces.
+const HOST = process.env.HOST || '127.0.0.1';
 const vault = new AmnesiaVault();
 
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'dashboard')));
 
@@ -161,17 +161,17 @@ app.get('/audit/stats', (_req: Request, res: Response) => {
 
 // ─── START ──────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log('');
   console.log('  ╔══════════════════════════════════════════════════════╗');
   console.log('  ║      CRYPTOGRAPHIC AMNESIA — DAEMON v1.0.0           ║');
   console.log('  ║      AES-256-GCM · HMAC-SHA256 · Proof-of-Erasure    ║');
   console.log('  ╚══════════════════════════════════════════════════════╝');
   console.log('');
-  console.log(`  API Server   →  http://localhost:${PORT}`);
-  console.log(`  Dashboard    →  http://localhost:${PORT}/index.html`);
-  console.log(`  Health       →  http://localhost:${PORT}/health`);
-  console.log(`  Audit Log    →  http://localhost:${PORT}/audit/log`);
+  console.log(`  API Server   →  http://${HOST}:${PORT}`);
+  console.log(`  Dashboard    →  http://${HOST}:${PORT}/index.html`);
+  console.log(`  Health       →  http://${HOST}:${PORT}/health`);
+  console.log(`  Audit Log    →  http://${HOST}:${PORT}/audit/log`);
   console.log('');
   console.log('  Waiting for agent memory requests...\n');
 });
