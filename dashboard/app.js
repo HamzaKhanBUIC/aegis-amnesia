@@ -3,13 +3,36 @@
    Live polling · Memory cards · Audit log · Shred animations
    ───────────────────────────────────────────────────────────── */
 
-const API_BASE = 'http://localhost:3747';
+const API_BASE = ''; // same origin: the daemon serves this dashboard
 const POLL_INTERVAL = 800; // ms
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let knownIds = new Set();
 let knownEventIds = new Set();
 let pollTimer = null;
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+// /memory and /audit need `Authorization: Bearer <AMNESIA_TOKEN>`.
+// The token is kept in sessionStorage, so it is forgotten when the tab closes.
+const TOKEN_KEY = 'amnesia-token';
+let tokenPromptDeclined = false;
+
+function getToken() {
+  let token = sessionStorage.getItem(TOKEN_KEY) || '';
+  if (!token && !tokenPromptDeclined) {
+    token = (window.prompt('Daemon access token (AMNESIA_TOKEN):') || '').trim();
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    else tokenPromptDeclined = true; // stop re-prompting until reload
+  }
+  return token;
+}
+
+async function api(path, options = {}) {
+  const headers = { ...options.headers, Authorization: `Bearer ${getToken()}` };
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) sessionStorage.removeItem(TOKEN_KEY);
+  return res;
+}
 
 // ── DOM REFS ──────────────────────────────────────────────────────────────
 const statusDot  = document.getElementById('status-dot');
@@ -123,7 +146,7 @@ modalSubmit.addEventListener('click', async () => {
   modalSubmit.textContent = 'Encrypting...';
 
   try {
-    const res = await fetch(`${API_BASE}/memory/store`, {
+    const res = await api('/memory/store', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label, plaintext, ttlMs }),
@@ -156,7 +179,7 @@ async function forceShred(id) {
   if (card) card.classList.add('shredding');
 
   try {
-    const res = await fetch(`${API_BASE}/memory/${id}`, { method: 'DELETE' });
+    const res = await api(`/memory/${id}`, { method: 'DELETE' });
     if (res.ok) {
       const data = await res.json();
       setTimeout(() => {
@@ -286,8 +309,8 @@ async function poll() {
     // Fetch health + memory + audit in parallel
     const [healthRes, memRes, auditRes] = await Promise.all([
       fetch(`${API_BASE}/health`),
-      fetch(`${API_BASE}/memory`),
-      fetch(`${API_BASE}/audit/log`),
+      api('/memory'),
+      api('/audit/log'),
     ]);
 
     if (!healthRes.ok) throw new Error('Daemon offline');
@@ -303,6 +326,11 @@ async function poll() {
     statTotalVal.textContent   = health.stats.total;
     statAuditVal.textContent   = health.stats.auditEvents;
     statUptimeVal.textContent  = health.uptime.toFixed(0);
+
+    if (memRes.status === 401 || auditRes.status === 401) {
+      statusText.textContent = 'Token Required';
+      return;
+    }
 
     // ── MEMORY CARDS
     const memData = await memRes.json();
