@@ -1,5 +1,5 @@
 async function populate() {
-  const API = 'http://localhost:3747';
+  const API = process.env.AMNESIA_URL || 'http://127.0.0.1:3747';
   
   const items = [
     {
@@ -25,7 +25,10 @@ async function populate() {
     try {
       const res = await fetch(`${API}/memory/store`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.AMNESIA_TOKEN ?? ''}`,
+        },
         body: JSON.stringify(item)
       });
       if (res.ok) {
@@ -39,7 +42,7 @@ async function populate() {
     }
   }
 
-  console.log('\nAll ready! Go ahead and open http://localhost:3747 in your browser to see them live.');
+  console.log(`\nAll ready! Go ahead and open ${API} in your browser to see them live.`);
 }
 
 populate();
